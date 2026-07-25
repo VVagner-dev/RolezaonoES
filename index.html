@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roteiro Espírito Santo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; padding-top: env(safe-area-inset-top, 0); padding-bottom: env(safe-area-inset-bottom, 0); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-btn.active { background: #2563eb; color: white; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+        .timeline-line { position: absolute; left: 23px; top: 3rem; bottom: 1rem; width: 2px; background: #cbd5e1; }
+        @media (max-width: 640px) { .timeline-line { left: 17px; } }
+        .map-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(4px); }
+        .map-overlay.open { display: flex; }
+        .map-modal { background: white; border-radius: 1.25rem; width: 100%; max-width: 720px; max-height: 90vh; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); animation: mapIn 0.25s ease-out; }
+        @keyframes mapIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .map-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; }
+        .map-modal-header h3 { font-weight: 700; font-size: 1.1rem; color: #1e293b; }
+        .map-modal-close { background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; padding: 0.25rem; line-height: 1; transition: color 0.15s; }
+        .map-modal-close:hover { color: #475569; }
+        #mapContainer { width: 100%; height: 400px; }
+        @media (max-width: 640px) { #mapContainer { height: 300px; } }
+        .map-btn { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.7rem; font-weight: 600; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; padding: 0.375rem 0.625rem; border-radius: 999px; cursor: pointer; transition: all 0.15s; min-height: 36px; }
+        .map-btn:hover { background: #2563eb; color: white; border-color: #2563eb; }
+        .photo-btn { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.7rem; font-weight: 600; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; padding: 0.375rem 0.625rem; border-radius: 999px; cursor: pointer; transition: all 0.15s; min-height: 36px; }
+        .photo-btn:hover { background: #2563eb; color: white; border-color: #2563eb; }
+        .photo-btn i { font-size: 0.65rem; }
+        .media-btn { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.7rem; font-weight: 600; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; padding: 0.375rem 0.625rem; border-radius: 999px; cursor: pointer; transition: all 0.15s; min-height: 36px; }
+        .media-btn:hover { background: #2563eb; color: white; border-color: #2563eb; }
+        .media-btn i { font-size: 0.65rem; }
+        .media-btn-video { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+        .media-btn-video:hover { background: #dc2626; color: white; border-color: #dc2626; }
+        @media (max-width: 640px) {
+            .map-btn, .photo-btn, .media-btn { min-height: 40px; padding: 0.5rem 0.75rem; font-size: 0.75rem; }
+            .tab-btn { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+            .timeline-line { left: 17px; }
+            header h1 { font-size: 1.75rem !important; line-height: 1.2 !important; }
+            .tab-fade-left, .tab-fade-right { position: absolute; top: 0; bottom: 0; width: 24px; pointer-events: none; z-index: 2; }
+            .tab-fade-left { left: 0; background: linear-gradient(to right, #f8fafc, transparent); }
+            .tab-fade-right { right: 0; background: linear-gradient(to left, #f8fafc, transparent); }
+        }
+        .tab-btn { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600; color: #64748b; background: transparent; border: none; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+        .tab-btn:hover { background: #e2e8f0; color: #334155; }
+        .tab-btn i { font-size: 0.75rem; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        html { scroll-behavior: smooth; }
+
+        /* Galeria de Fotos */
+        .photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; }
+        .photo-grid img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; cursor: pointer; transition: transform 0.2s, opacity 0.2s; }
+        .photo-grid img:hover { transform: scale(1.05); opacity: 0.85; }
+        @media (max-width: 480px) { .photo-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(8px); cursor: pointer; }
+        .lightbox.open { display: flex; }
+        .lightbox img { max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 12px; box-shadow: 0 30px 60px rgba(0,0,0,0.6); animation: lbIn 0.25s ease-out; }
+        .lightbox-media { display: flex; align-items: center; justify-content: center; width: 100%; height: 85vh; cursor: default; }
+        .lightbox-media iframe { width: 85vw; max-width: 800px; height: 80vh; border: none; border-radius: 12px; box-shadow: 0 30px 60px rgba(0,0,0,0.6); animation: lbIn 0.25s ease-out; background: #111; }
+        .lightbox-counter { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600; background: rgba(0,0,0,0.4); padding: 0.35rem 0.9rem; border-radius: 999px; user-select: none; pointer-events: none; }
+        .lightbox-type { position: absolute; top: 1.25rem; left: 1.5rem; color: rgba(255,255,255,0.6); font-size: 0.75rem; font-weight: 600; background: rgba(0,0,0,0.4); padding: 0.25rem 0.75rem; border-radius: 999px; user-select: none; pointer-events: none; }
+        .lightbox-close { position: absolute; top: 1rem; right: 1.5rem; color: white; font-size: 2.5rem; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; background: none; border: none; z-index: 1; }
+        .lightbox-close:hover { opacity: 1; }
+        .media-btn { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.7rem; font-weight: 600; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; padding: 0.25rem 0.625rem; border-radius: 999px; cursor: pointer; transition: all 0.15s; }
+        .media-btn:hover { background: #2563eb; color: white; border-color: #2563eb; }
+        .media-btn i { font-size: 0.65rem; }
+        .media-btn-video { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+        .media-btn-video:hover { background: #dc2626; color: white; border-color: #dc2626; }
+    </style>
+</head>
+<body>
+
+    <header class="relative bg-gradient-to-br from-blue-700 to-blue-950 text-white overflow-hidden">
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute -top-24 -right-24 w-96 h-96 bg-white rounded-full"></div>
+            <div class="absolute -bottom-32 -left-32 w-80 h-80 bg-white rounded-full"></div>
+        </div>
+        <div class="relative max-w-4xl mx-auto px-4 sm:px-5 py-8 sm:py-16">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">15 a 18 de Julho 2026</span>
+                <span class="bg-rose-400 text-white text-xs font-bold px-3 py-1 rounded-full">4 Dias</span>
+            </div>
+            <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mt-3">Rolezão no <span class="text-rose-300">ES</span></h1>
+            <p class="text-blue-100 text-lg sm:text-xl mt-3 max-w-xl">Roteiro completo pra curtir Vitória, Vila Velha e região com a galera. <strong class="text-white">Qui 15 → Dom 18</strong></p>
+            <div class="flex flex-wrap gap-4 mt-6 text-sm text-blue-100">
+                <span class="flex items-center gap-1.5"><i class="fas fa-users"></i> 10 guris</span>
+                <span class="flex items-center gap-1.5"><i class="fas fa-map-marker-alt"></i> Vitória / Vila Velha</span>
+                <span class="flex items-center gap-1.5"><i class="fas fa-wallet"></i> Orçamento ~R$ 450-550/pessoa (sem hospedagem)</span>
+            </div>
+        </div>
+        <div class="h-1.5 bg-gradient-to-r from-blue-700 via-rose-400 to-blue-700"></div>
+    </header>
+
+    <div class="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
+        <div class="max-w-4xl mx-auto px-5">
+            <div class="relative">
+                <div class="tab-fade-left"></div>
+                <div class="flex overflow-x-auto gap-1 py-3 scrollbar-hide" id="tabNav">
+                <button class="tab-btn active" data-tab="quinta"><i class="fas fa-calendar-day"></i><span>Quinta</span></button>
+                <button class="tab-btn" data-tab="sexta"><i class="fas fa-calendar-day"></i><span>Sexta</span></button>
+                <button class="tab-btn" data-tab="sabado"><i class="fas fa-calendar-day"></i><span>Sábado</span></button>
+                <button class="tab-btn" data-tab="domingo"><i class="fas fa-calendar-day"></i><span>Domingo</span></button>
+                <button class="tab-btn" data-tab="comer"><i class="fas fa-utensils"></i><span>Onde Comer</span></button>
+                <button class="tab-btn" data-tab="dicas"><i class="fas fa-lightbulb"></i><span>Dicas</span></button>
+            </div>
+            <div class="tab-fade-right"></div>
+        </div>
+        </div>
+    </div>
+
+    <main class="max-w-4xl mx-auto px-5 py-8">
+
+        <!-- ===== QUINTA ===== -->
+        <div id="tab-quinta" class="tab-content active">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="bg-blue-100 text-blue-700 text-sm font-bold px-3 py-1 rounded-full">DIA 1</div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900">Quinta-feira</h2>
+                <span class="text-gray-400 text-sm">Chegada</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-6 text-xs">
+                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><i class="fas fa-home text-blue-500"></i> <strong>Airbnb:</strong> Av. Mal. Mascarenhas de Moraes, 1333 - Bento Ferreira
+                    <button class="map-btn ml-0.5" data-lat="-20.3178" data-lng="-40.3200" data-title="Airbnb - Bento Ferreira"><i class="fas fa-map-marker-alt"></i></button>
+                </span>
+                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><i class="fas fa-bicycle text-rose-500"></i> <strong>Bike Vitória:</strong> Estação 10 (Prefeitura) + Estação 11 (Praça do Papa)</span>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6 border-b border-gray-100">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-amber-100 text-amber-700 rounded-full text-sm font-bold"><i class="fas fa-sun text-xs"></i></span>
+                    <div class="timeline-line"></div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded">Manhã</span>
+                        <span class="text-gray-400 text-xs">~ 8h - 12h</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1">Bike Vitória, Aquaviário e Convento da Penha</h3>
+                    <div class="mt-2 space-y-2 text-gray-600 text-sm">
+                        <p class="flex items-start gap-2">
+                            <i class="fas fa-bicycle text-rose-500 mt-1 w-4 text-center"></i>
+                            <span><strong>Bike Vitória do Airbnb → Praça do Papa</strong> — Pegue uma bike compartilhada na estação <strong>Bike Vitória</strong> perto do Airbnb (Av. Mal. Mascarenhas de Moraes, Bento Ferreira). Pedale pela orla de Vitória (Praia de Camburi → Enseada do Suá) até a <strong>Praça do Papa</strong>, que também tem estação de Bike Vitória. ~25 min de pedal, lindo visual!
+                                <button class="map-btn ml-1" data-lat="-20.3178" data-lng="-40.3200" data-title="Airbnb - Av. Mal. Mascarenhas de Moraes, 1333 - Bento Ferreira"><i class="fas fa-map-marker-alt"></i> Airbnb</button>
+                            </span>
+                        </p>
+                        <p class="flex items-start gap-2">
+                            <i class="fas fa-ship text-rose-500 mt-1 w-4 text-center"></i>
+                            <span><strong>Aquaviário — Estação Prefeito Setembrino Pelissari (Praça do Papa)</strong> — A Praça do Papa tem terminal Aquaviário com esse nome (linha 402). Pegue o barco até a Prainha (Vila Velha). ~R$ 5,10. Travessia rápida com vista da baía!
+                                <button class="map-btn ml-1" data-lat="-20.31815" data-lng="-40.29422" data-title="Estação Prefeito Setembrino Pelissari - Praça do Papa" data-route-lat="-20.32754" data-route-lng="-40.29146" data-route-title="Estação Governador Albuíno Azeredo - Prainha"><i class="fas fa-route"></i> Ver rota</button>
+                                <button class="photo-btn ml-1" data-photos="https://www.netdeal.com.br/api/images/producao.spayce.com.br/1772810903586_2024_03_05_aquaviario_2033486.jpg|https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYK6R_AMOLU82_tatKXINwbMVXI1G_9KrWf_80GlX8eyFwg_80iDsuEZw&s=10|https://ceturb.es.gov.br/Media/ceturb/_Profiles/c4d8c6e6/68d0e04e/WhatsApp%20Image%202025-08-13%20at%2016.20.05.jpeg?v=638906992873156000" data-videos="https://www.instagram.com/reels/DSaDPlyjoMs/"><i class="fas fa-camera"></i> Fotos</button>
+                                <button class="media-btn media-btn-video ml-1" data-photos="https://www.netdeal.com.br/api/images/producao.spayce.com.br/1772810903586_2024_03_05_aquaviario_2033486.jpg|https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYK6R_AMOLU82_tatKXINwbMVXI1G_9KrWf_80GlX8eyFwg_80iDsuEZw&s=10|https://ceturb.es.gov.br/Media/ceturb/_Profiles/c4d8c6e6/68d0e04e/WhatsApp%20Image%202025-08-13%20at%2016.20.05.jpeg?v=638906992873156000" data-videos="https://www.instagram.com/reels/DSaDPlyjoMs/"><i class="fas fa-play"></i> Vídeo</button>
+                            </span>
+                        </p>
+                        <p class="flex items-start gap-2">
+                            <i class="fas fa-church text-rose-500 mt-1 w-4 text-center"></i>
+                            <span><strong>Convento da Penha</strong> — Principal cartão-postal do ES. A 5 min a pé do terminal da Prainha. Subida pela trilha (20 min) ou van. Gratuito.
+                                <button class="map-btn ml-1" data-lat="-20.3295" data-lng="-40.2872" data-title="Convento da Penha"><i class="fas fa-map-marker-alt"></i> Mapa</button>
+                                <button class="photo-btn ml-1" data-photos="https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Convento_da_Penha_e_Terceira_Ponte_com_Mar_e_Vit%C3%B3ria_ao_fundo.jpg/1280px-Convento_da_Penha_e_Terceira_Ponte_com_Mar_e_Vit%C3%B3ria_ao_fundo.jpg|https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgsEey6jT4fcl9aFXvgyA1cKXs9PV4msePyL04OyV0oGtl89eeZ-pQ9bTV61yu8TdM5p8Zag32YqJ-xw82KIpYYyMGtIxphpm5L72VqWKsmnmGnAeIIor7X57BZPCnMhhDHR-doyLGDsdTu/s1600/20200824_092957.jpg|https://cdn.conventodapenha.org.br/wp-content/uploads/2019/09/04110010/Altar_Convento_foto_Zanete_Dadalto_MZD5450.jpg" data-videos="https://www.instagram.com/reels/DN0wX9TwAWt/"><i class="fas fa-camera"></i> Fotos</button>
+                                <button class="media-btn media-btn-video ml-1" data-photos="https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Convento_da_Penha_e_Terceira_Ponte_com_Mar_e_Vit%C3%B3ria_ao_fundo.jpg/1280px-Convento_da_Penha_e_Terceira_Ponte_com_Mar_e_Vit%C3%B3ria_ao_fundo.jpg|https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgsEey6jT4fcl9aFXvgyA1cKXs9PV4msePyL04OyV0oGtl89eeZ-pQ9bTV61yu8TdM5p8Zag32YqJ-xw82KIpYYyMGtIxphpm5L72VqWKsmnmGnAeIIor7X57BZPCnMhhDHR-doyLGDsdTu/s1600/20200824_092957.jpg|https://cdn.conventodapenha.org.br/wp-content/uploads/2019/09/04110010/Altar_Convento_foto_Zanete_Dadalto_MZD5450.jpg" data-videos="https://www.instagram.com/reels/DN0wX9TwAWt/"><i class="fas fa-play"></i> Vídeo</button>
+                            </span>
+                        </p>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-money-bill-wave"></i> Total: ~R$ 20</span>
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-clock"></i> 3-4h</span>
+                    </div>
+                </div>
+
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6 border-b border-gray-100">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-orange-100 text-orange-700 rounded-full text-sm font-bold"><i class="fas fa-cloud-sun text-xs"></i></span>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-orange-100 text-orange-800 text-xs font-bold px-2 py-0.5 rounded">Tarde</span>
+                        <span class="text-gray-400 text-xs">~ 14h - 17h</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1"><i class="fas fa-crosshairs text-rose-500 mr-1"></i> Paintball</h3>
+                    <p class="text-sm text-gray-600 mt-1">Casarão Paintball em Vila Velha. Tarde de adrenalina com a galera.
+                        <button class="map-btn ml-1" data-lat="-20.3266" data-lng="-40.3426" data-title="Casarão Paintball - Argolas, Vila Velha"><i class="fas fa-map-marker-alt"></i> Mapa</button>
+                        <button class="photo-btn ml-1" data-photos="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQhFl17ck_K8flu5RxXiEcMFmLJ-G_zbr7JWFch6uob6OSEGZQ67dVw92o&s=10|https://scontent-gig4-1.cdninstagram.com/v/t51.82787-15/643589687_18453789553097190_654408758134849516_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ig_cache_key=Mzg0NDEwMzU1ODU3MzE1MjcwOQ%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6IkNBUk9VU0VMX0lURU0ueHBpZHMuOTYwLnNkci5yZWd1bGFyX3Bob3RvLkMzIn0%3D&_nc_ohc=Aeax_sOhRvwQ7kNvwHqV7fi&_nc_oc=AdrnLQO_PGhwvBeRnV8GPdAJ9V3uddiChluYv-52Y6eWyUG14kV9Mw_UHikdmYdRFd4hUs5zrUDMz3dTKjf4AmFF&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent-gig4-1.cdninstagram.com&_nc_gid=8LUoxx5j01duUwY6SEiufA&_nc_ss=7a22e&oh=00_AQCFN5EZMjifZPsEpxSm4BtcUY7s_pFsVd_KVCRiTmK4Ig&oe=6A6AABC9|https://scontent-gig4-1.cdninstagram.com/v/t51.82787-15/643587830_18453789544097190_5836913038331177358_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ig_cache_key=Mzg0NDEwMzU1NTkwNTU2Mzc1Mw%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6IkNBUk9VU0VMX0lURU0ueHBpZHMuOTYwLnNkci5yZWd1bGFyX3Bob3RvLkMzIn0%3D&_nc_ohc=zN7y53xngBIQ7kNvwFVB_pp&_nc_oc=AdqRhuBZv7b8qlAUitO8F_yMY3LMzJKsD-ht3QftIKhOFZnxt5dRoSuBEmHRoZhLDMOZ45h887eIf74qXC9oFhcz&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent-gig4-1.cdninstagram.com&_nc_gid=8LUoxx5j01duUwY6SEiufA&_nc_ss=7a22e&oh=00_AQCV6g0paeAWNMHGhrfLRUPtrifpYEiSHaCHJDCwXGOiGA&oe=6A6ABFA7" data-videos="https://www.instagram.com/reels/DGbZYPZP39d/"><i class="fas fa-camera"></i> Fotos</button>
+                        <button class="media-btn media-btn-video ml-1" data-photos="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQhFl17ck_K8flu5RxXiEcMFmLJ-G_zbr7JWFch6uob6OSEGZQ67dVw92o&s=10|https://scontent-gig4-1.cdninstagram.com/v/t51.82787-15/643589687_18453789553097190_654408758134849516_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ig_cache_key=Mzg0NDEwMzU1ODU3MzE1MjcwOQ%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6IkNBUk9VU0VMX0lURU0ueHBpZHMuOTYwLnNkci5yZWd1bGFyX3Bob3RvLkMzIn0%3D&_nc_ohc=Aeax_sOhRvwQ7kNvwHqV7fi&_nc_oc=AdrnLQO_PGhwvBeRnV8GPdAJ9V3uddiChluYv-52Y6eWyUG14kV9Mw_UHikdmYdRFd4hUs5zrUDMz3dTKjf4AmFF&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent-gig4-1.cdninstagram.com&_nc_gid=8LUoxx5j01duUwY6SEiufA&_nc_ss=7a22e&oh=00_AQCFN5EZMjifZPsEpxSm4BtcUY7s_pFsVd_KVCRiTmK4Ig&oe=6A6AABC9|https://scontent-gig4-1.cdninstagram.com/v/t51.82787-15/643587830_18453789544097190_5836913038331177358_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ig_cache_key=Mzg0NDEwMzU1NTkwNTU2Mzc1Mw%3D%3D.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6IkNBUk9VU0VMX0lURU0ueHBpZHMuOTYwLnNkci5yZWd1bGFyX3Bob3RvLkMzIn0%3D&_nc_ohc=zN7y53xngBIQ7kNvwFVB_pp&_nc_oc=AdqRhuBZv7b8qlAUitO8F_yMY3LMzJKsD-ht3QftIKhOFZnxt5dRoSuBEmHRoZhLDMOZ45h887eIf74qXC9oFhcz&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent-gig4-1.cdninstagram.com&_nc_gid=8LUoxx5j01duUwY6SEiufA&_nc_ss=7a22e&oh=00_AQCV6g0paeAWNMHGhrfLRUPtrifpYEiSHaCHJDCwXGOiGA&oe=6A6ABFA7" data-videos="https://www.instagram.com/reels/DGbZYPZP39d/"><i class="fas fa-play"></i> Vídeo</button>
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-money-bill-wave"></i> R$ 50-70 (1h)</span>
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-clock"></i> 2-3h</span>
+                    </div>
+                </div>
+
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full text-sm font-bold"><i class="fas fa-moon text-xs"></i></span>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-0.5 rounded">Noite</span>
+                        <span class="text-gray-400 text-xs">~ 18h+</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1"><i class="fas fa-water text-rose-500 mr-1"></i> Iemanjá e Orla de Camburi</h3>
+                    <p class="text-sm text-gray-600 mt-1">Passeio no Píer de Iemanjá e caminhada noturna pela orla. Depois, jantar.
+                        <button class="map-btn ml-1" data-lat="-20.2920" data-lng="-40.2861" data-title="Píer de Iemanjá - Praia de Camburi"><i class="fas fa-map-marker-alt"></i> Iemanjá</button>
+                        <button class="photo-btn ml-1" data-photos="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyO_IqO9de2kZelSN6kCtvOTvsNQastBuZdjWP8ouFGU3pxTS-LCF3F-k&s=10|https://www.netdeal.com.br/api/images/proxy?quality=100&src=https://www.netdeal.com.br/api/images/producao.spayce.com.br/1774919957936_2020_09_17_o_por_do_sol_visto_do_pier_de_iemanja_321084_article.jpg"><i class="fas fa-camera"></i> Fotos</button>
+                        <button class="map-btn ml-1" data-lat="-20.2830" data-lng="-40.2890" data-title="Orla de Camburi - Vitória"><i class="fas fa-map-marker-alt"></i> Camburi</button>
+                        <button class="photo-btn ml-1" data-photos="https://dynamic-media-cdn.tripadvisor.com/media/photo-o/07/5d/7c/83/vista-da-praia-de-camburi.jpg?w=1200&h=-1&s=1|https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR0fzMCv1AHvRpIaO3YaRsLzT2EIS1v52HFk5z-F0kR8DVwtiV0swFVRZU&s=10" data-videos="https://www.youtube.com/watch?v=e46rBAbZBMc"><i class="fas fa-camera"></i> Fotos</button>
+                        <button class="media-btn media-btn-video ml-1" data-photos="https://dynamic-media-cdn.tripadvisor.com/media/photo-o/07/5d/7c/83/vista-da-praia-de-camburi.jpg?w=1200&h=-1&s=1|https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR0fzMCv1AHvRpIaO3YaRsLzT2EIS1v52HFk5z-F0kR8DVwtiV0swFVRZU&s=10" data-videos="https://www.youtube.com/watch?v=e46rBAbZBMc"><i class="fas fa-play"></i> Vídeo</button>
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-green-50 text-green-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-money-bill-wave"></i> Gratuito</span>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 px-5 sm:px-6 py-3 flex flex-wrap items-center gap-3 text-xs text-gray-500 border-t border-gray-100">
+                    <span><i class="fas fa-wallet text-rose-500 mr-1"></i> <strong>Gasto estimado:</strong> ~R$ 90</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span><i class="fas fa-utensils text-orange-500 mr-1"></i> <strong>Comer:</strong> Moqueca no Pirão ou Papaguth</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== SEXTA ===== -->
+        <div id="tab-sexta" class="tab-content">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="bg-blue-100 text-blue-700 text-sm font-bold px-3 py-1 rounded-full">DIA 2</div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900">Sexta-feira</h2>
+                <span class="text-gray-400 text-sm">Aventura</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-6 text-xs">
+                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><i class="fas fa-home text-blue-500"></i> Saindo do Airbnb (Bento Ferreira)
+                    <button class="map-btn ml-0.5" data-lat="-20.3178" data-lng="-40.3200" data-title="Airbnb - Bento Ferreira"><i class="fas fa-map-marker-alt"></i></button>
+                </span>
+                <span class="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><i class="fas fa-car text-purple-500"></i> Uber para Vila Velha: ~R$ 25</span>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6 border-b border-gray-100">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-amber-100 text-amber-700 rounded-full text-sm font-bold"><i class="fas fa-sun text-xs"></i></span>
+                    <div class="timeline-line"></div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded">Manhã</span>
+                        <span class="text-gray-400 text-xs">~ 7h - 12h</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1">🌿 Trilha do Morro do Moreno</h3>
+                    <p class="text-sm text-gray-600 mt-1">Trilha clássica de Vila Velha. Vista espetacular da Terceira Ponte, Convento e baía. ~40 min até o topo. Leva água e tênis!
+                        <button class="map-btn ml-1" data-lat="-20.3258" data-lng="-40.2769" data-title="Morro do Moreno"><i class="fas fa-map-marker-alt"></i> Mapa</button>
+                        <button class="photo-btn ml-1" data-photos="https://upload.wikimedia.org/wikipedia/commons/2/25/Vista_da_Terceira_Ponte_e_do_Morro_do_Moreno_a_partir_do_Convento_da_Penha%2C_Vila_Velha_ES2.JPG|https://dynamic-media-cdn.tripadvisor.com/media/photo-o/10/c7/78/92/morro-do-moreno.jpg?w=1200&h=-1&s=1|https://cdn.esbrasil.com.br/wp-content/uploads/2024/07/Morro_do_Moreno_nx051224007-1.jpg" data-videos="https://www.360cities.net/pt/image/final-de-tarde-no-morro-do-moreno-em-vila-velha-es#19.30,10.00,87.4"><i class="fas fa-camera"></i> Fotos</button>
+                        <button class="media-btn media-btn-video ml-1" data-photos="https://upload.wikimedia.org/wikipedia/commons/2/25/Vista_da_Terceira_Ponte_e_do_Morro_do_Moreno_a_partir_do_Convento_da_Penha%2C_Vila_Velha_ES2.JPG|https://dynamic-media-cdn.tripadvisor.com/media/photo-o/10/c7/78/92/morro-do-moreno.jpg?w=1200&h=-1&s=1|https://cdn.esbrasil.com.br/wp-content/uploads/2024/07/Morro_do_Moreno_nx051224007-1.jpg" data-videos="https://www.360cities.net/pt/image/final-de-tarde-no-morro-do-moreno-em-vila-velha-es#19.30,10.00,87.4"><i class="fas fa-360-degrees"></i> 360°</button>
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-green-50 text-green-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-money-bill-wave"></i> Gratuito</span>
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-clock"></i> 2h</span>
+                        <span class="bg-yellow-50 text-yellow-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-shoe-prints"></i> Médio</span>
+                    </div>
+                </div>
+
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6 border-b border-gray-100">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-orange-100 text-orange-700 rounded-full text-sm font-bold"><i class="fas fa-cloud-sun text-xs"></i></span>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-orange-100 text-orange-800 text-xs font-bold px-2 py-0.5 rounded">Tarde</span>
+                        <span class="text-gray-400 text-xs">~ 14h - 17h</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1"><i class="fas fa-umbrella-beach text-rose-500 mr-1"></i> Praia Secreta & Farol Santa Luzia</h3>
+                    <p class="text-sm text-gray-600 mt-1">Mergulho na Praia Secreta (pequena, entre pedras) e visita ao Farol Santa Luzia (funciona até 17h).
+                        <button class="map-btn ml-1" data-lat="-20.3249" data-lng="-40.2695" data-title="Praia Secreta"><i class="fas fa-map-marker-alt"></i> Praia Secreta</button>
+                        <button class="map-btn ml-1" data-lat="-20.3244" data-lng="-40.2676" data-title="Farol Santa Luzia"><i class="fas fa-map-marker-alt"></i> Farol</button>
+                        <button class="photo-btn ml-1" data-photos="https://upload.wikimedia.org/wikipedia/commons/3/34/Farol_Santa_Luzia_em_Vila_Velha-ES._01.jpg|https://upload.wikimedia.org/wikipedia/commons/6/6a/Farol_Santa_Luzia_em_Vila_Velha-ES._04.jpg|https://upload.wikimedia.org/wikipedia/commons/3/36/Farol_Santa_Luzia_em_Vila_Velha-ES._07.jpg|https://upload.wikimedia.org/wikipedia/commons/b/b2/Farol_Santa_Luzia%2C_localizado_no_munic%C3%ADpio_de_Vila_Velha_%28ES%29_%2852749701974%29.jpg" data-videos="https://www.instagram.com/reels/DU8bYzLkVNF/|https://www.instagram.com/reels/DVRGOYijtbP/|https://www.instagram.com/reels/DI1T6SmR6qn/"><i class="fas fa-camera"></i> Fotos</button>
+                        <button class="media-btn media-btn-video ml-1" data-photos="https://upload.wikimedia.org/wikipedia/commons/3/34/Farol_Santa_Luzia_em_Vila_Velha-ES._01.jpg|https://upload.wikimedia.org/wikipedia/commons/6/6a/Farol_Santa_Luzia_em_Vila_Velha-ES._04.jpg|https://upload.wikimedia.org/wikipedia/commons/3/36/Farol_Santa_Luzia_em_Vila_Velha-ES._07.jpg|https://upload.wikimedia.org/wikipedia/commons/b/b2/Farol_Santa_Luzia%2C_localizado_no_munic%C3%ADpio_de_Vila_Velha_%28ES%29_%2852749701974%29.jpg" data-videos="https://www.instagram.com/reels/DU8bYzLkVNF/|https://www.instagram.com/reels/DVRGOYijtbP/|https://www.instagram.com/reels/DI1T6SmR6qn/"><i class="fas fa-play"></i> Vídeos</button>
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-money-bill-wave"></i> Farol: gratuito</span>
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-clock"></i> 3h</span>
+                    </div>
+                </div>
+
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full text-sm font-bold"><i class="fas fa-moon text-xs"></i></span>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-0.5 rounded">Noite</span>
+                        <span class="text-gray-400 text-xs">~ 18h+</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1"><i class="fas fa-beer text-yellow-500 mr-1"></i> Food Trucks & Rua da Lama</h3>
+                    <p class="text-sm text-gray-600 mt-1"><strong>Praça Regina Frigeri Furno</strong> (a "pracinha do BH") — food trucks pra jantar. Depois <strong>Rua da Lama</strong> (Jardim da Penha, perto da UFES) — bares universitários.
+                        <button class="map-btn ml-1" data-lat="-20.282845" data-lng="-40.293979" data-title="Praça Regina Frigeri Furno - Food Trucks" data-route-lat="-20.2798" data-route-lng="-40.3005" data-route-title="Rua da Lama - Rua Anísio Fernandes Coelho"><i class="fas fa-route"></i> Ver rota</button>
+                        <button class="photo-btn ml-1" data-photos="https://simnoticias.com.br/wp-content/uploads/2025/11/Praca-Philogomiro-Lannes-Praca-do-Supermercado-BH.jpeg" data-videos="https://www.instagram.com/reels/DVJMyvpAMyS/"><i class="fas fa-camera"></i> Food</button>
+                        <button class="media-btn media-btn-video ml-1" data-photos="https://simnoticias.com.br/wp-content/uploads/2025/11/Praca-Philogomiro-Lannes-Praca-do-Supermercado-BH.jpeg" data-videos="https://www.instagram.com/reels/DVJMyvpAMyS/"><i class="fas fa-play"></i> Vídeo</button>
+                        <button class="map-btn ml-1" data-lat="-20.2798" data-lng="-40.3005" data-title="Rua da Lama - Rua Anísio Fernandes Coelho, Jardim da Penha"><i class="fas fa-map-marker-alt"></i> Rua da Lama</button>
+                        <button class="photo-btn ml-1" data-photos="https://www.netdeal.com.br/api/images/proxy?quality=100&src=https://www.netdeal.com.br/api/images/producao.spayce.com.br/1774918426721_midias_jpg_2018_05_22_download_5620251.jpg" data-videos="https://www.tiktok.com/search?q=rua%20da%20lama&t=1784996884760"><i class="fas fa-camera"></i> Lama</button>
+                        <button class="media-btn media-btn-video ml-1" data-photos="https://www.netdeal.com.br/api/images/proxy?quality=100&src=https://www.netdeal.com.br/api/images/producao.spayce.com.br/1774918426721_midias_jpg_2018_05_22_download_5620251.jpg" data-videos="https://www.tiktok.com/search?q=rua%20da%20lama&t=1784996884760"><i class="fas fa-play"></i> TikTok</button>
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-money-bill-wave"></i> Consumo: ~R$ 100</span>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 px-5 sm:px-6 py-3 flex flex-wrap items-center gap-3 text-xs text-gray-500 border-t border-gray-100">
+                    <span><i class="fas fa-wallet text-rose-500 mr-1"></i> <strong>Gasto estimado:</strong> ~R$ 170</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span><i class="fas fa-utensils text-orange-500 mr-1"></i> <strong>Almoço:</strong> Restaurante na Praia da Costa</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== SÁBADO ===== -->
+        <div id="tab-sabado" class="tab-content">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="bg-blue-100 text-blue-700 text-sm font-bold px-3 py-1 rounded-full">DIA 3</div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900">Sábado</h2>
+                <span class="text-gray-400 text-sm">Natureza + Aceleração</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-6 text-xs">
+                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><i class="fas fa-home text-blue-500"></i> Saindo do Airbnb (Bento Ferreira)
+                    <button class="map-btn ml-0.5" data-lat="-20.3178" data-lng="-40.3200" data-title="Airbnb - Bento Ferreira"><i class="fas fa-map-marker-alt"></i></button>
+                </span>
+                <span class="bg-green-50 text-green-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><i class="fas fa-walking text-green-500"></i> Fonte Grande fica perto (~2 km)</span>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6 border-b border-gray-100">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-amber-100 text-amber-700 rounded-full text-sm font-bold"><i class="fas fa-sun text-xs"></i></span>
+                    <div class="timeline-line"></div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded">Manhã</span>
+                        <span class="text-gray-400 text-xs">~ 8h - 12h</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1"><i class="fas fa-mountain text-rose-500 mr-1"></i> Parque da Fonte Grande</h3>
+                    <p class="text-sm text-gray-600 mt-1">Mirantes com vista 360° da Grande Vitória. Funciona ter-dom 8h-17h30. Fecha segunda. Leva água!
+                        <button class="map-btn ml-1" data-lat="-20.3125" data-lng="-40.3333" data-title="Parque da Fonte Grande"><i class="fas fa-map-marker-alt"></i> Mapa</button>
+                        <button class="photo-btn ml-1" data-photos="https://upload.wikimedia.org/wikipedia/commons/1/12/Parque_da_Fonte_Grande_01.jpg|https://upload.wikimedia.org/wikipedia/commons/e/e2/Parque_da_Fonte_Grande_02.jpg|https://upload.wikimedia.org/wikipedia/commons/8/83/Pedra_dos_Dois_Olhos.jpg|https://upload.wikimedia.org/wikipedia/commons/b/bc/MarceloMoryan_ParqueDaFonteGrande_Vitoria_ES_%2839183016360%29.jpg|https://upload.wikimedia.org/wikipedia/commons/9/9e/Caminhada_pelo_Parque_da_Fonte_Grande_Vitoria_ES.jpg" data-videos="https://www.instagram.com/reels/DQt_by3ji1C/"><i class="fas fa-camera"></i> Fotos</button>
+                        <button class="media-btn media-btn-video ml-1" data-photos="https://upload.wikimedia.org/wikipedia/commons/1/12/Parque_da_Fonte_Grande_01.jpg|https://upload.wikimedia.org/wikipedia/commons/e/e2/Parque_da_Fonte_Grande_02.jpg|https://upload.wikimedia.org/wikipedia/commons/8/83/Pedra_dos_Dois_Olhos.jpg|https://upload.wikimedia.org/wikipedia/commons/b/bc/MarceloMoryan_ParqueDaFonteGrande_Vitoria_ES_%2839183016360%29.jpg|https://upload.wikimedia.org/wikipedia/commons/9/9e/Caminhada_pelo_Parque_da_Fonte_Grande_Vitoria_ES.jpg" data-videos="https://www.instagram.com/reels/DQt_by3ji1C/"><i class="fas fa-play"></i> Vídeo</button>
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-green-50 text-green-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-money-bill-wave"></i> Gratuito</span>
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-clock"></i> 2-3h</span>
+                    </div>
+                </div>
+
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6 border-b border-gray-100">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-orange-100 text-orange-700 rounded-full text-sm font-bold"><i class="fas fa-cloud-sun text-xs"></i></span>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-orange-100 text-orange-800 text-xs font-bold px-2 py-0.5 rounded">Tarde</span>
+                        <span class="text-gray-400 text-xs">~ 14h - 17h</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1"><i class="fas fa-route text-rose-500 mr-1"></i> Centro Histórico de Vitória</h3>
+                    <p class="text-sm text-gray-600 mt-1">Caminhada: <strong>Palácio Anchieta</strong>, <strong>Catedral Metropolitana</strong>, <strong>MAES</strong>, Escadaria São Diogo.
+                        <button class="map-btn ml-1" data-lat="-20.3186" data-lng="-40.3378" data-title="Palácio Anchieta - Centro Histórico"><i class="fas fa-map-marker-alt"></i> Mapa</button>
+                        <button class="photo-btn ml-1" data-photos="https://upload.wikimedia.org/wikipedia/commons/3/3c/Pal%C3%A1cio_Anchieta_Vit%C3%B3ria_Esp%C3%ADrito_Santo_2019-4647.jpg|https://upload.wikimedia.org/wikipedia/commons/e/e1/Pal%C3%A1cio_Anchieta_Vit%C3%B3ria_Esp%C3%ADrito_Santo_2019-4745.jpg|https://upload.wikimedia.org/wikipedia/commons/9/9e/Pal%C3%A1cio_Anchieta.jpg|https://upload.wikimedia.org/wikipedia/commons/2/2e/Pal%C3%A1cio_Anchieta_Vit%C3%B3ria_Esp%C3%ADrito_Santo_2019-4759.jpg|https://upload.wikimedia.org/wikipedia/commons/7/7f/Pal%C3%A1cio_Anchieta_Vit%C3%B3ria_Esp%C3%ADrito_Santo_2019-4352.jpg"><i class="fas fa-camera"></i> Fotos</button>
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-green-50 text-green-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-money-bill-wave"></i> Gratuito</span>
+                    </div>
+                </div>
+
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full text-sm font-bold"><i class="fas fa-moon text-xs"></i></span>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2 py-0.5 rounded">Noite</span>
+                        <span class="text-gray-400 text-xs">~ 18h+</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1"><i class="fas fa-flag-checkered text-red-500 mr-1"></i> Fãs de Kart Indoor</h3>
+                    <p class="text-sm text-gray-600 mt-1">Acelerar com a galera no Fãs de Kart Indoor em Jardim Camburi. Bateria de 20 min ~R$ 65.
+                        <button class="map-btn ml-1" data-lat="-20.2475" data-lng="-40.2736" data-title="Fãs de Kart - Jardim Camburi"><i class="fas fa-map-marker-alt"></i> Mapa</button>
+                        <button class="photo-btn ml-1" data-photos="https://dynamic-media-cdn.tripadvisor.com/media/photo-o/14/28/ed/a7/getlstd-property-photo.jpg?w=1200&h=-1&s=1" data-videos="https://www.instagram.com/reels/C8hq8-mutbV/"><i class="fas fa-camera"></i> Fotos</button>
+                        <button class="media-btn media-btn-video ml-1" data-photos="https://dynamic-media-cdn.tripadvisor.com/media/photo-o/14/28/ed/a7/getlstd-property-photo.jpg?w=1200&h=-1&s=1" data-videos="https://www.instagram.com/reels/C8hq8-mutbV/"><i class="fas fa-play"></i> Vídeo</button>
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-money-bill-wave"></i> ~R$ 65-80</span>
+                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-clock"></i> 2h</span>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 px-5 sm:px-6 py-3 flex flex-wrap items-center gap-3 text-xs text-gray-500 border-t border-gray-100">
+                    <span><i class="fas fa-wallet text-rose-500 mr-1"></i> <strong>Gasto estimado:</strong> ~R$ 150</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span><i class="fas fa-utensils text-orange-500 mr-1"></i> <strong>Almoço:</strong> Restaurante no Centro ou Ilha do Caranguejo</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== DOMINGO ===== -->
+        <div id="tab-domingo" class="tab-content">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="bg-blue-100 text-blue-700 text-sm font-bold px-3 py-1 rounded-full">DIA 4</div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900">Domingo</h2>
+                <span class="text-gray-400 text-sm flex items-center gap-1"><i class="fas fa-plane-departure"></i> Último dia — embarque à tarde</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-6 text-xs">
+                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><i class="fas fa-home text-blue-500"></i> Airbnb (Bento Ferreira)
+                    <button class="map-btn ml-0.5" data-lat="-20.3178" data-lng="-40.3200" data-title="Airbnb - Bento Ferreira"><i class="fas fa-map-marker-alt"></i></button>
+                </span>
+                <span class="bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><i class="fas fa-volleyball-ball text-yellow-500"></i> Vôlei na Praia de Camburi</span>
+                <span class="bg-red-50 text-red-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><i class="fas fa-door-open text-red-500"></i> Checkout ~12h</span>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <!-- Vôlei na Praia -->
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6 border-b border-gray-100">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-yellow-100 text-yellow-700 rounded-full text-sm font-bold"><i class="fas fa-volleyball-ball text-xs"></i></span>
+                    <div class="timeline-line"></div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded">Manhã</span>
+                        <span class="text-gray-400 text-xs">~ 8h - 11h</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1"><i class="fas fa-volleyball-ball text-rose-500 mr-1"></i> Vôlei na Praia de Camburi</h3>
+                    <p class="text-sm text-gray-600 mt-1">Encerrar a viagem com uma pelada de vôlei na areia! A orla de Camburi tem redes fixas e sempre rola um jogo. Depois é só tomar um banho, arrumar as malas e partir.
+                        <button class="map-btn ml-1" data-lat="-20.2830" data-lng="-40.2890" data-title="Praia de Camburi - Vôlei"><i class="fas fa-map-marker-alt"></i> Mapa</button>
+                        <button class="photo-btn ml-1" data-photos="https://m.vitoria.es.gov.br/recursos/imagens/banco/2017/09/05/57378/normal@2x.jpg"><i class="fas fa-camera"></i> Fotos</button>
+                    </p>
+                </div>
+
+                <!-- Checkout -->
+                <div class="relative pl-14 sm:pl-16 p-5 sm:p-6">
+                    <span class="absolute left-4 sm:left-5 top-6 flex items-center justify-center w-8 h-8 bg-orange-100 text-orange-700 rounded-full text-sm font-bold"><i class="fas fa-door-open text-xs"></i></span>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-orange-100 text-orange-800 text-xs font-bold px-2 py-0.5 rounded">Checkout</span>
+                        <span class="text-gray-400 text-xs">~ 12h</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mt-1"><i class="fas fa-suitcase text-rose-500 mr-1"></i> Arrumar as malas e fechar a casa</h3>
+                    <p class="text-sm text-gray-600 mt-1">Check-out no Airbnb, organizar as bags e seguir pro aeroporto/rodoviária. Se der tempo, um último açaí ou água de coco no trajeto 🥥</p>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span class="bg-green-50 text-green-700 px-2 py-1 rounded-lg flex items-center gap-1"><i class="fas fa-clock"></i> Bora pra casa</span>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 px-5 sm:px-6 py-3 flex flex-wrap items-center gap-3 text-xs text-gray-500 border-t border-gray-100">
+                    <span><i class="fas fa-wallet text-rose-500 mr-1"></i> <strong>Gasto estimado:</strong> ~R$ 0 (só o busão/pé até a praia)</span>
+                    <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span><i class="fas fa-volleyball-ball text-yellow-500 mr-1"></i> <strong>Atividade:</strong> Vôlei na areia</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ONDE COMER ===== -->
+        <div id="tab-comer" class="tab-content">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 flex items-center gap-3">
+                <i class="fas fa-utensils text-orange-500"></i> Onde Comer
+            </h2>
+            <div class="grid sm:grid-cols-2 gap-4">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-red-100 text-red-600 rounded-lg w-10 h-10 flex items-center justify-center shrink-0"><i class="fas fa-fire"></i></div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">Moqueca Capixaba</h4>
+                            <p class="text-sm text-gray-500 mt-1">Sem dendê e sem leite de coco, na panela de barro.</p>
+                            <div class="mt-2 text-xs space-y-1 text-gray-600">
+                                <p><i class="fas fa-star text-yellow-400 text-[10px]"></i> <strong>Pirão</strong> — Praia do Canto
+                                    <button class="map-btn ml-1" data-lat="-20.2825" data-lng="-40.3020" data-title="Restaurante Pirão"><i class="fas fa-map-marker-alt"></i></button>
+                                </p>
+                                <p><i class="fas fa-star text-yellow-400 text-[10px]"></i> <strong>Papaguth</strong> — Praça do Papa, Enseada do Suá
+                                    <button class="map-btn ml-1" data-lat="-20.3105" data-lng="-40.3080" data-title="Restaurante Papaguth"><i class="fas fa-map-marker-alt"></i></button>
+                                </p>
+                                <p><i class="fas fa-star text-yellow-400 text-[10px]"></i> <strong>Atlântica</strong> — Praia da Costa, VV
+                                    <button class="map-btn ml-1" data-lat="-20.3380" data-lng="-40.2865" data-title="Restaurante Atlântica"><i class="fas fa-map-marker-alt"></i></button>
+                                </p>
+                                <p><i class="fas fa-star text-yellow-400 text-[10px]"></i> <strong>Ilha das Caieiras</strong> — Bairro de pescadores
+                                    <button class="map-btn ml-1" data-lat="-20.3060" data-lng="-40.3130" data-title="Ilha das Caieiras"><i class="fas fa-map-marker-alt"></i></button>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-orange-100 text-orange-600 rounded-lg w-10 h-10 flex items-center justify-center shrink-0"><i class="fas fa-shrimp"></i></div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">Outros Pratos Típicos</h4>
+                            <p class="text-sm text-gray-500 mt-1">Torta Capixaba, Muma de Siri, Casquinha de Siri.</p>
+                            <div class="mt-2 text-xs space-y-1 text-gray-600">
+                                <p><strong>Torta Capixaba</strong> — Frutos do mar + palmito</p>
+                                <p><strong>Muma de Siri</strong> — Patê de siri cremoso</p>
+                                <p><strong>Moquequinha de Banana</strong> — Acompanhamento clássico</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-yellow-100 text-yellow-600 rounded-lg w-10 h-10 flex items-center justify-center shrink-0"><i class="fas fa-beer"></i></div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">Vida Noturna</h4>
+                            <div class="mt-2 text-xs space-y-1 text-gray-600">
+                                <p><strong>Rua da Lama</strong> — Bares universitários (Rua Anísio Fernandes Coelho)
+                                    <button class="map-btn ml-1" data-lat="-20.2798" data-lng="-40.3005" data-title="Rua da Lama - Rua Anísio Fernandes Coelho"><i class="fas fa-map-marker-alt"></i></button>
+                                </p>
+                                <p><strong>Triângulo das Bermudas</strong> — Praia do Canto
+                                    <button class="map-btn ml-1" data-lat="-20.2830" data-lng="-40.3000" data-title="Triângulo das Bermudas"><i class="fas fa-map-marker-alt"></i></button>
+                                </p>
+                                <p><strong>Curva da Jurema</strong> — Quiosques
+                                    <button class="map-btn ml-1" data-lat="-20.3000" data-lng="-40.3035" data-title="Curva da Jurema"><i class="fas fa-map-marker-alt"></i></button>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-green-100 text-green-600 rounded-lg w-10 h-10 flex items-center justify-center shrink-0"><i class="fas fa-cookie-bite"></i></div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">Doces & Café</h4>
+                            <div class="mt-2 text-xs space-y-1 text-gray-600">
+                                <p><strong>Fábrica da Garoto</strong> — Tour gratuito
+                                    <button class="map-btn ml-1" data-lat="-20.3345" data-lng="-40.2920" data-title="Fábrica da Garoto"><i class="fas fa-map-marker-alt"></i></button>
+                                </p>
+                                <p><strong>Café do Jacu</strong> — Fazenda Camocim</p>
+                                <p><strong>Selah Chocolate</strong> — Artesanal em Pedra Azul</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== DICAS ===== -->
+        <div id="tab-dicas" class="tab-content">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 flex items-center gap-3">
+                <i class="fas fa-lightbulb text-yellow-500"></i> Dicas Importantes
+            </h2>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+                <div class="flex items-start gap-4">
+                    <span class="bg-blue-100 text-blue-700 rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-bold text-sm">1</span>
+                    <div>
+                        <h4 class="font-bold text-gray-800">Transporte</h4>
+                        <p class="text-sm text-gray-600 mt-0.5">Uber/99 funcionam bem em Vitória e Vila Velha. Aquaviário ~R$ 5,10 (linha 402 — Estação Prefeito Setembrino Pelissari na Praça do Papa ↔ Prainha)
+                                <button class="map-btn ml-1" data-lat="-20.31815" data-lng="-40.29422" data-title="Estação Prefeito Setembrino Pelissari - Praça do Papa" data-route-lat="-20.32754" data-route-lng="-40.29146" data-route-title="Estação Governador Albuíno Azeredo - Prainha"><i class="fas fa-route"></i> Ver rota</button>.
+                            <strong>Bike Vitória</strong> tem estações perto do Airbnb e pela orla. Se alugarem carro, vão mais longe (Pedra Azul, Guarapari).</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="bg-green-100 text-green-700 rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-bold text-sm">2</span>
+                    <div>
+                        <h4 class="font-bold text-gray-800">O que levar</h4>
+                        <p class="text-sm text-gray-600 mt-0.5">Protetor solar, repelente, roupa de banho, tênis pra trilha, câmera e uma blusa leve (pode esfriar à noite).</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="bg-purple-100 text-purple-700 rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-bold text-sm">3</span>
+                    <div>
+                        <h4 class="font-bold text-gray-800">Se sobrar tempo</h4>
+                        <p class="text-sm text-gray-600 mt-0.5">Bate-volta pra <strong>Guarapari</strong> (40km) ou <strong>Pedra Azul / Domingos Martins</strong> (100km). Também o <strong>Buda Gigante</strong> em Ibiraçu.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="bg-red-100 text-red-700 rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-bold text-sm">4</span>
+                    <div>
+                        <h4 class="font-bold text-gray-800">Orçamento Realista</h4>
+                        <p class="text-sm text-gray-600 mt-0.5">Total com comida, passeios e saídas: <strong>R$ 1.000 a R$ 1.500/pessoa</strong> (fora hospedagem).</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="bg-blue-100 text-blue-700 rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-bold text-sm">5</span>
+                    <div>
+                        <h4 class="font-bold text-gray-800">Bike Vitória (bike compartilhada)</h4>
+                        <p class="text-sm text-gray-600 mt-0.5">Estações espalhadas por Vitória. Baixe o app <strong>Bike Vitória</strong> pra ver estações e valores. A <strong>Estação 10 (Prefeitura)</strong> fica a ~5 min a pé do Airbnb. A <strong>Estação 11 (Praça do Papa)</strong> é onde vocês largam as bikes antes do Aquaviário. Ideal pra pedalar pela orla!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- LIGHTBOX DE FOTOS / VÍDEOS -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" id="lightboxClose">&times;</button>
+        <div id="lightboxMedia" class="lightbox-media"></div>
+        <div class="lightbox-counter" id="lightboxCounter"></div>
+        <div class="lightbox-type" id="lightboxType"></div>
+    </div>
+
+    <!-- BOTÃO FLUTUANTE - MAPA GERAL -->
+    <button id="mapAllBtn" class="fixed bottom-6 right-6 z-30 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center text-xl transition-all duration-200 hover:scale-110 active:scale-95" title="Ver todos os pontos no mapa">
+        <i class="fas fa-map"></i>
+    </button>
+
+    <!-- MAPA MODAL -->
+    <div class="map-overlay" id="mapOverlay">
+        <div class="map-modal">
+            <div class="map-modal-header">
+                <h3 id="mapTitle"><i class="fas fa-map-pin text-rose-500 mr-2"></i> Localização</h3>
+                <button class="map-modal-close" id="mapClose">&times;</button>
+            </div>
+            <div id="mapFilterBar" class="flex flex-wrap gap-1.5 px-4 py-2.5 border-b border-gray-100 bg-gray-50"></div>
+            <div id="mapContainer"></div>
+            <div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                <span class="text-xs text-gray-400 flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Clique nos pins para ver detalhes</span>
+                <button id="openGmapsBtn" class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors">
+                    <i class="fas fa-external-link-alt text-[10px]"></i> Abrir no Google Maps
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-900 text-gray-400 text-sm py-8">
+        <div class="max-w-4xl mx-auto px-5 text-center">
+            <p class="font-bold text-white text-lg">Rolezão no ES 🏖️</p>
+            <p class="mt-1">Feito com carinho pros amigos. Aproveitem cada momento!</p>
+            <p class="mt-4 text-gray-500">Dicas atualizadas em Julho de 2026</p>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const mapOverlay = document.getElementById('mapOverlay');
+        const mapContainer = document.getElementById('mapContainer');
+        const mapTitle = document.getElementById('mapTitle');
+        let currentMap = null;
+        let markers = [];
+        let polylines = [];
+        let currentLat = null, currentLng = null, currentTitle = '';
+        let currentRouteLat = null, currentRouteLng = null, currentRouteTitle = '';
+
+        function destroyMap() {
+            if (currentMap) {
+                currentMap.remove();
+                currentMap = null;
+            }
+            markers = [];
+            polylines = [];
+        }
+
+        function clearLayers() {
+            if (!currentMap) return;
+            markers.forEach(m => currentMap.removeLayer(m));
+            polylines.forEach(p => currentMap.removeLayer(p));
+            markers = [];
+            polylines = [];
+        }
+
+        function initMap(lat, lng, zoom) {
+            destroyMap();
+            currentMap = L.map('mapContainer').setView([lat, lng], zoom || 16);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(currentMap);
+            return currentMap;
+        }
+
+        function openMap(lat, lng, title, routeLat, routeLng, routeTitle) {
+            mapOverlay.classList.add('open');
+            mapTitle.innerHTML = '📍 ' + title + (routeTitle ? ' ➝ ' + routeTitle : '');
+            currentLat = lat; currentLng = lng; currentTitle = title;
+            currentRouteLat = routeLat || null; currentRouteLng = routeLng || null; currentRouteTitle = routeTitle || '';
+            setTimeout(() => {
+                initMap(lat, lng, routeLat ? 14 : 16);
+
+                let m1 = L.marker([lat, lng]).addTo(currentMap);
+                m1.bindPopup(`<b>${title}</b>`);
+                if (!routeLat) m1.openPopup();
+                markers.push(m1);
+
+                if (routeLat && routeLng) {
+                    let m2 = L.marker([routeLat, routeLng]).addTo(currentMap);
+                    m2.bindPopup(`<b>${routeTitle || 'Destino'}</b>`);
+                    markers.push(m2);
+
+                    let poly = L.polyline([[lat, lng], [routeLat, routeLng]], {
+                        color: '#2563eb',
+                        weight: 3,
+                        opacity: 0.8,
+                        dashArray: '10, 8'
+                    }).addTo(currentMap);
+                    polylines.push(poly);
+
+                    currentMap.fitBounds([[lat, lng], [routeLat, routeLng]], { padding: [60, 60] });
+                }
+            }, 100);
+        }
+
+        function openGoogleMaps() {
+            let url;
+            if (currentLat !== null && currentLng !== null) {
+                if (currentRouteLat && currentRouteLng) {
+                    // Modo rota: usa os nomes dos lugares
+                    const origin = encodeURIComponent(currentTitle.replace(/^[^\w]{1,2}\s*/, ''));
+                    const dest = encodeURIComponent(currentRouteTitle.replace(/^[^\w]{1,2}\s*/, ''));
+                    url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`;
+                } else {
+                    // Local único: usa o nome do lugar
+                    const place = encodeURIComponent(currentTitle);
+                    url = `https://www.google.com/maps/search/?api=1&query=${place}`;
+                }
+            } else {
+                url = `https://www.google.com/maps/search/?api=1&query=Vitória+ES`;
+            }
+            window.open(url, '_blank');
+        }
+
+        document.getElementById('openGmapsBtn').addEventListener('click', openGoogleMaps);
+
+        function closeMap() { mapOverlay.classList.remove('open'); }
+
+        document.getElementById('mapClose').addEventListener('click', closeMap);
+        mapOverlay.addEventListener('click', function(e) { if (e.target === mapOverlay) closeMap(); });
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeMap(); });
+
+        document.querySelectorAll('.map-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const lat = parseFloat(this.getAttribute('data-lat'));
+                const lng = parseFloat(this.getAttribute('data-lng'));
+                const title = this.getAttribute('data-title');
+                const routeLat = this.getAttribute('data-route-lat');
+                const routeLng = this.getAttribute('data-route-lng');
+                const routeTitle = this.getAttribute('data-route-title');
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    openMap(lat, lng, title,
+                        routeLat ? parseFloat(routeLat) : null,
+                        routeLng ? parseFloat(routeLng) : null,
+                        routeTitle || null);
+                }
+            });
+        });
+
+        document.querySelectorAll('.tab-btn').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById('tab-' + this.getAttribute('data-tab')).classList.add('active');
+            });
+        });
+
+        // ===== MAPA GERAL — TODOS OS PONTOS =====
+        const dayConfig = {
+            quinta:  { label: 'Quinta',  color: '#f59e0b', bg: '#fef3c7', icon: '🟡' },
+            sexta:   { label: 'Sexta',   color: '#3b82f6', bg: '#dbeafe', icon: '🔵' },
+            sabado:  { label: 'Sábado',  color: '#8b5cf6', bg: '#ede9fe', icon: '🟣' },
+            domingo: { label: 'Domingo', color: '#ef4444', bg: '#fee2e2', icon: '🔴' }
+        };
+
+        const allSpots = {
+            quinta: [
+                { lat: -20.3178,  lng: -40.3200,  title: '🏠 Airbnb (Bento Ferreira)' },
+                { lat: -20.31815, lng: -40.29422, title: '⛴️ Est. Pref. Setembrino Pelissari' },
+                { lat: -20.32754, lng: -40.29146, title: '⛴️ Est. Gov. Albuíno Azeredo (Prainha)' },
+                { lat: -20.3295,  lng: -40.2872,  title: '⛪ Convento da Penha' },
+                { lat: -20.3266,  lng: -40.3426,  title: '🎯 Casarão Paintball' },
+                { lat: -20.2920,  lng: -40.2861,  title: '🌊 Píer de Iemanjá' },
+                { lat: -20.2830,  lng: -40.2890,  title: '🌊 Orla de Camburi' }
+            ],
+            sexta: [
+                { lat: -20.3258,   lng: -40.2769,  title: '🌿 Morro do Moreno' },
+                { lat: -20.3249,   lng: -40.2695,  title: '🏖️ Praia Secreta' },
+                { lat: -20.3244,   lng: -40.2676,  title: '🗼 Farol Santa Luzia' },
+                { lat: -20.282845, lng: -40.293979, title: '🌮 Food Trucks (Pça Regina Frigeri Furno)' },
+                { lat: -20.2798,   lng: -40.3005,  title: '🍺 Rua da Lama' }
+            ],
+            sabado: [
+                { lat: -20.3125, lng: -40.3333, title: '🏔️ Parque da Fonte Grande' },
+                { lat: -20.3186, lng: -40.3378, title: '🏛️ Palácio Anchieta / Centro Histórico' },
+                { lat: -20.2475, lng: -40.2736, title: '🏎️ Fãs de Kart Indoor' }
+            ],
+            domingo: [
+                { lat: -20.2830, lng: -40.2890, title: '🏐 Vôlei na Praia de Camburi' }
+            ]
+        };
+
+        function openMapAll(activeDay) {
+            mapOverlay.classList.add('open');
+            mapTitle.innerHTML = '🗺️ Todos os pontos';
+            currentLat = null; currentLng = null; currentTitle = '';
+            currentRouteLat = null; currentRouteLng = null; currentRouteTitle = '';
+            const filterBar = document.getElementById('mapFilterBar');
+            filterBar.innerHTML = '';
+
+            // Botão "Todas"
+            const allBtn = document.createElement('button');
+            allBtn.className = 'px-3 py-1 rounded-full text-xs font-bold border transition-all ' + (activeDay === 'all' || !activeDay ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100');
+            allBtn.textContent = '📌 Todas';
+            allBtn.onclick = () => openMapAll('all');
+            filterBar.appendChild(allBtn);
+
+            // Botão por dia
+            Object.keys(dayConfig).forEach(day => {
+                const cfg = dayConfig[day];
+                const btn = document.createElement('button');
+                const isActive = activeDay === day;
+                btn.className = 'px-3 py-1 rounded-full text-xs font-bold border transition-all ' + (isActive ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100');
+                if (isActive) btn.style.background = cfg.color;
+                btn.textContent = cfg.icon + ' ' + cfg.label;
+                btn.onclick = () => openMapAll(day);
+                filterBar.appendChild(btn);
+            });
+
+            setTimeout(() => {
+                initMap(-20.305, -40.30, 13);
+                clearLayers();
+
+                const bounds = [];
+
+                Object.keys(allSpots).forEach(day => {
+                    const spots = allSpots[day];
+                    const cfg = dayConfig[day];
+                    const show = (activeDay === 'all' || activeDay === day || !activeDay);
+
+                    spots.forEach(p => {
+                        const color = show ? cfg.color : '#d1d5db';
+                        const radius = show ? 9 : 5;
+                        const opacity = show ? 0.9 : 0.3;
+
+                        const marker = L.circleMarker([p.lat, p.lng], {
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: opacity,
+                            radius: radius,
+                            weight: 2,
+                            opacity: opacity
+                        }).addTo(currentMap);
+
+                        if (show) {
+                            marker.bindPopup(`<b>${cfg.icon} ${cfg.label}</b><br>${p.title}`);
+                        }
+                        markers.push(marker);
+                        bounds.push([p.lat, p.lng]);
+                    });
+
+                    // Conectar pontos do dia com linhas tracejadas
+                    if (show && spots.length > 1 && (activeDay === day || activeDay === 'all')) {
+                        for (let i = 0; i < spots.length - 1; i++) {
+                            const poly = L.polyline([
+                                [spots[i].lat, spots[i].lng],
+                                [spots[i + 1].lat, spots[i + 1].lng]
+                            ], {
+                                color: cfg.color,
+                                weight: 2,
+                                opacity: 0.25,
+                                dashArray: '6, 6'
+                            }).addTo(currentMap);
+                            polylines.push(poly);
+                        }
+                    }
+                });
+
+                if (bounds.length > 0) {
+                    currentMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+                }
+            }, 100);
+        }
+
+        // Botão flutuante
+        document.getElementById('mapAllBtn').addEventListener('click', function() {
+            openMapAll('all');
+        });
+
+        // ===== GALERIA DE FOTOS E VÍDEOS (LIGHTBOX) =====
+        const lightbox = document.getElementById('lightbox');
+        const lightboxMedia = document.getElementById('lightboxMedia');
+        const lightboxCounter = document.getElementById('lightboxCounter');
+        const lightboxType = document.getElementById('lightboxType');
+        const lightboxClose = document.getElementById('lightboxClose');
+
+        function isVideoUrl(url) {
+            return url.includes('youtube.com/watch') || url.includes('youtu.be/') ||
+                   url.includes('instagram.com/reel') || url.includes('instagram.com/reels') ||
+                   url.includes('tiktok.com') || url.includes('360cities.net');
+        }
+
+        function getEmbedUrl(url) {
+            if (url.includes('youtube.com/watch') || url.includes('youtu.be/')) {
+                const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+                if (match) return `https://www.youtube.com/embed/${match[1]}?autoplay=1&rel=0`;
+            }
+            if (url.includes('instagram.com/reel') || url.includes('instagram.com/reels')) {
+                const match = url.match(/instagram\.com\/reels?\/([\w-]+)/);
+                if (match) return `https://www.instagram.com/reel/${match[1]}/embed`;
+            }
+            if (url.includes('tiktok.com')) {
+                const match = url.match(/tiktok\.com\/@?[\w.-]+\/video\/(\d+)/);
+                if (match) return `https://www.tiktok.com/embed/v2/${match[1]}`;
+                return url; // fallback: open URL directly
+            }
+            if (url.includes('360cities.net')) {
+                return url; // 360 view, open in new tab
+            }
+            return url;
+        }
+
+        function renderMedia(src, index, total) {
+            lightboxMedia.innerHTML = '';
+            lightboxCounter.textContent = total > 1 ? `${index + 1} / ${total}` : '';
+            if (isVideoUrl(src)) {
+                const embedUrl = getEmbedUrl(src);
+                if (embedUrl.includes('360cities.net') || embedUrl.includes('tiktok.com/search')) {
+                    // Open in new tab for 360 views and TikTok searches
+                    lightboxType.textContent = '🌐 Abrindo em nova aba…';
+                    lightboxMedia.innerHTML = `<div class="text-white text-center p-8"><p style="font-size:1.1rem;margin-bottom:1rem">Este conteúdo abre em nova aba</p><a href="${embedUrl}" target="_blank" style="display:inline-block;padding:0.75rem 2rem;background:#2563eb;color:white;border-radius:8px;text-decoration:none;font-weight:600">↗️ Abrir</a></div>`;
+                    setTimeout(() => window.open(embedUrl, '_blank'), 300);
+                } else {
+                    lightboxType.textContent = '▶️ Vídeo';
+                    lightboxMedia.innerHTML = `<iframe src="${embedUrl}" allowfullscreen allow="autoplay; encrypted-media"></iframe>`;
+                }
+            } else {
+                lightboxType.textContent = '📷 Foto';
+                lightboxMedia.innerHTML = `<img src="${src}" alt="Foto do local" style="cursor:default">`;
+            }
+        }
+
+        function openLightbox(mediaArray, startIndex) {
+            if (!mediaArray || mediaArray.length === 0) return;
+            lightbox.classList.add('open');
+            let currentIdx = startIndex || 0;
+
+            renderMedia(mediaArray[currentIdx], currentIdx, mediaArray.length);
+
+            // Navigation by clicking on the media element
+            lightboxMedia.onclick = function(ev) {
+                const rect = this.getBoundingClientRect();
+                const x = ev.clientX - rect.left;
+                const mid = rect.width / 2;
+                if (x > mid) {
+                    currentIdx = Math.min(currentIdx + 1, mediaArray.length - 1);
+                } else {
+                    currentIdx = Math.max(currentIdx - 1, 0);
+                }
+                renderMedia(mediaArray[currentIdx], currentIdx, mediaArray.length);
+            };
+        }
+
+        function closeLightbox() {
+            lightbox.classList.remove('open');
+            lightboxMedia.innerHTML = '';
+            lightboxCounter.textContent = '';
+            lightboxType.textContent = '';
+        }
+
+        lightboxClose.addEventListener('click', closeLightbox);
+        lightbox.addEventListener('click', function(e) { if (e.target === lightbox) closeLightbox(); });
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox(); });
+
+        // Delegação de eventos para botões de foto e vídeo
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.photo-btn, .media-btn');
+            if (!btn) return;
+            const photosAttr = btn.getAttribute('data-photos');
+            const videosAttr = btn.getAttribute('data-videos');
+            if (!photosAttr && !videosAttr) return;
+
+            const photos = photosAttr ? photosAttr.split('|').map(s => s.trim()).filter(Boolean) : [];
+            const videos = videosAttr ? videosAttr.split('|').map(s => s.trim()).filter(Boolean) : [];
+            const allMedia = [...photos, ...videos];
+
+            if (allMedia.length === 0) return;
+
+            // Determine start index based on button type
+            let startIdx = 0;
+            if (btn.classList.contains('media-btn-video') && videos.length > 0) {
+                startIdx = photos.length; // Start at first video
+            }
+
+            openLightbox(allMedia, startIdx);
+        });
+    </script>
+</body>
+</html>
